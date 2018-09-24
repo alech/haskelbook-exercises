@@ -23,3 +23,9 @@ vigenere keyword plain =
             | c `elem` enumFromTo 'a' 'z' = ord c - ord 'a'
             | c `elem` enumFromTo 'A' 'Z' = ord c - ord 'A'
             | otherwise                   = 0
+
+main :: IO ()
+main = do
+    line <- getLine
+    putStrLn $ "rot13: " ++ rot13 line
+    putStrLn $ "vigenere vigenere: "++ vigenere "vigenere" line
