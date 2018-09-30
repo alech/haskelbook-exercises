@@ -4,6 +4,7 @@ module QuickCheckEx where
 
 import Test.QuickCheck
 import Data.List (sort)
+import Data.Char (toUpper)
 
 half :: Fractional a => a -> a
 half x = x / 2
@@ -163,6 +164,25 @@ prop_readShow =
     forAll (arbitrary :: Gen Integer)
         (\x -> read (show x) == x)
 
+twice f = f . f
+fourTimes = twice . twice
+
+capitalizeWord :: String -> String
+capitalizeWord ""     = ""
+capitalizeWord (c:xs) = toUpper c : xs
+
+prop_capitalizeIdempotency :: Property
+prop_capitalizeIdempotency =
+    forAll (arbitrary :: Gen String)
+        (\x -> capitalizeWord x == twice capitalizeWord x &&
+               capitalizeWord x == fourTimes capitalizeWord x)
+
+prop_sortIdempotency :: Property
+prop_sortIdempotency =
+    forAll (arbitrary :: Gen [String])
+        (\x -> sort x == twice sort x &&
+               sort x == fourTimes sort x)
+
 main :: IO ()
 main = do
     quickCheck prop_halfIdentity
@@ -181,3 +201,5 @@ main = do
     quickCheck prop_foldr2
     quickCheck prop_length
     quickCheck prop_readShow
+    quickCheck prop_capitalizeIdempotency
+    quickCheck prop_sortIdempotency
