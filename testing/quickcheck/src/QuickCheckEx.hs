@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
 module QuickCheckEx where
 
 import Test.QuickCheck
@@ -117,6 +119,50 @@ prop_powerCommutative :: Property
 prop_powerCommutative =
     forAll arbTwoPositiveIntegers $ uncurry powerCommutative
 
+reverseTwice :: Eq a => [a] -> Bool
+reverseTwice x = (reverse . reverse) x == x
+
+prop_reverseTwiceIsId :: Property
+prop_reverseTwiceIsId =
+    forAll (arbitrary :: Gen [Int]) reverseTwice
+
+-- this is a bit of a hack in order to be able to
+-- use a "arbitrary :: Int -> Int", which would need
+-- a show instance for "forAll"
+-- TODO: figure out if there are better ways to do this
+instance Show (Int -> Int) where
+    show _ = "f :: Int -> Int"
+
+genFunctionIntIntAndInt :: Gen (Int -> Int, Int)
+genFunctionIntIntAndInt = do
+    f <- arbitrary :: Gen (Int -> Int)
+    a <- arbitrary :: Gen Int
+    return (f, a)
+
+prop_dollar :: Property
+prop_dollar =
+    forAll (genFunctionIntIntAndInt) (\(f, a) -> (f $ a) == f a)
+
+prop_foldr1 :: Property
+prop_foldr1 =
+    forAll (arbitrary :: Gen ([String], [String]))
+        (\(a, b) -> foldr (:) a b == (++) a b)
+
+prop_foldr2 :: Property
+prop_foldr2 =
+    forAll (arbitrary :: Gen [[String]])
+        (\a -> foldr (++) [] a == concat a)
+
+prop_length :: Property
+prop_length =
+    forAll (arbitrary :: Gen (Int, [String]))
+        (\(n, xs) -> length (take n xs) == n)
+
+prop_readShow :: Property
+prop_readShow =
+    forAll (arbitrary :: Gen Integer)
+        (\x -> read (show x) == x)
+
 main :: IO ()
 main = do
     quickCheck prop_halfIdentity
@@ -129,3 +175,9 @@ main = do
     quickCheck prop_divModLaw
     quickCheck prop_powerAssociative
     quickCheck prop_powerCommutative
+    quickCheck prop_reverseTwiceIsId
+    quickCheck prop_dollar
+    quickCheck prop_foldr1
+    quickCheck prop_foldr2
+    quickCheck prop_length
+    quickCheck prop_readShow
