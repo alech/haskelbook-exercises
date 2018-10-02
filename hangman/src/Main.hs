@@ -6,6 +6,8 @@ import Data.Maybe (isJust, fromMaybe)
 import Data.List (intersperse)
 import System.Exit (exitSuccess)
 import System.Random (randomRIO)
+import Test.QuickCheck
+import Test.QuickCheck.Arbitrary (vector)
 
 -- type WordList = [String]
 newtype WordList = WordList [String] deriving (Eq, Show)
@@ -45,10 +47,19 @@ data Puzzle =
     Puzzle String [Maybe Char] [Char] Int
 
 instance Show Puzzle where
-    show (Puzzle _ discovered guessed incorrect) =
+    show (Puzzle w discovered guessed incorrect) =
+        w ++ " " ++ 
         (intersperse ' ' $ fmap renderPuzzleChar discovered) ++
         " Guessed so far: " ++ guessed ++
         "\nIncorrect guesses: " ++ show incorrect
+
+genEmptyPuzzle :: Gen Puzzle
+genEmptyPuzzle = do
+    -- get a random word length between min and max
+    wordLength <- elements [minWordLength..maxWordLength]
+    -- use traverse to turn [Gen Char] into Gen [Char]
+    word <- traverse (\_ -> elements ['a'..'z']) (replicate wordLength ())
+    return $ freshPuzzle word
 
 freshPuzzle :: String -> Puzzle
 freshPuzzle s = Puzzle s (const Nothing <$> s) [] 0
@@ -117,6 +128,26 @@ runGame puzzle = forever $ do
     case guess of
         [c] -> handleGuess puzzle c >>= runGame
         _   -> putStrLn "Your guess must be a single character"
+
+genPuzzleAndCorrectChar :: Gen (Puzzle, Char)
+genPuzzleAndCorrectChar = do
+    puzzle <- genEmptyPuzzle
+    let correctChars = (\(Puzzle s _ _ _) -> s) puzzle
+    char <- elements correctChars
+    return (puzzle, char)
+
+prop_fillInCorrectCharacter :: Property
+prop_fillInCorrectCharacter =
+    forAll genPuzzleAndCorrectChar
+        (\(p@(Puzzle word discovered guessed incorrect), c) -> 
+        -- incorrect value does not change on correct guess
+        pIncorrect (newPuzzle p c) == incorrect &&
+        -- and 'Just c' is in the discovered array
+        (Just c) `elem` pDiscovered (newPuzzle p c))
+    where
+        newPuzzle p c = fillInCharacter p c True
+        pIncorrect  (Puzzle _ _ _ i) = i
+        pDiscovered (Puzzle _ d _ _) = d
 
 main :: IO ()
 main = do

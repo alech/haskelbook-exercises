@@ -19,3 +19,4 @@ executable hangman
   build-depends:       base >= 4.7 && < 5
                      , random
                      , split
+                     , QuickCheck
