@@ -8,6 +8,8 @@ import System.Exit (exitSuccess)
 import System.Random (randomRIO)
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary (vector)
+import Test.QuickCheck.Monadic (monadicIO, run, pick, assert)
+import Data.Set (Set(..), fromList, (\\), toList)
 
 -- type WordList = [String]
 newtype WordList = WordList [String] deriving (Eq, Show)
@@ -44,11 +46,10 @@ randomWord' :: IO String
 randomWord' = gameWords >>= randomWord
 
 data Puzzle =
-    Puzzle String [Maybe Char] [Char] Int
+    Puzzle String [Maybe Char] [Char] Int deriving Eq
 
 instance Show Puzzle where
-    show (Puzzle w discovered guessed incorrect) =
-        w ++ " " ++ 
+    show (Puzzle _ discovered guessed incorrect) =
         (intersperse ' ' $ fmap renderPuzzleChar discovered) ++
         " Guessed so far: " ++ guessed ++
         "\nIncorrect guesses: " ++ show incorrect
@@ -136,18 +137,63 @@ genPuzzleAndCorrectChar = do
     char <- elements correctChars
     return (puzzle, char)
 
+genPuzzleAndIncorrectChar :: Gen (Puzzle, Char)
+genPuzzleAndIncorrectChar = do
+    puzzle <- genEmptyPuzzle
+    let correctChars   = fromList $ (\(Puzzle s _ _ _) -> s) puzzle
+    let incorrectChars = toList (fromList ['a'..'z'] \\ correctChars)
+    char <- elements incorrectChars
+    return (puzzle, char)
+
 prop_fillInCorrectCharacter :: Property
 prop_fillInCorrectCharacter =
     forAll genPuzzleAndCorrectChar
-        (\(p@(Puzzle word discovered guessed incorrect), c) -> 
+        (\(p@(Puzzle word discovered guessed incorrect), c) ->
         -- incorrect value does not change on correct guess
         pIncorrect (newPuzzle p c) == incorrect &&
-        -- and 'Just c' is in the discovered array
+        -- and 'Just c' is in the discovered list
         (Just c) `elem` pDiscovered (newPuzzle p c))
     where
         newPuzzle p c = fillInCharacter p c True
         pIncorrect  (Puzzle _ _ _ i) = i
         pDiscovered (Puzzle _ d _ _) = d
+
+prop_fillInIncorrectCharacter :: Property
+prop_fillInIncorrectCharacter =
+    forAll genPuzzleAndIncorrectChar
+        (\(p@(Puzzle word discovered guessed incorrect), c) ->
+        -- incorrect value increases on icorrect guess
+        pIncorrect (newPuzzle p c) == incorrect + 1 &&
+        -- and discovered list should stay the same
+        pDiscovered (newPuzzle p c) == discovered)
+    where
+        newPuzzle p c = fillInCharacter p c False
+        pIncorrect  (Puzzle _ _ _ i) = i
+        pDiscovered (Puzzle _ d _ _) = d
+
+prop_handleGuessedAlreadyGuessed :: Property
+prop_handleGuessedAlreadyGuessed = monadicIO $ do
+    (p, c) <- pick genPuzzleAndCorrectChar
+    let guessedCPuzzle = fillInCharacter p c True
+    handledPuzzle <- run $ handleGuess guessedCPuzzle c
+    -- assert that puzzle did not change
+    assert $ handledPuzzle == guessedCPuzzle
+
+prop_handleGuessedGuessCorrect :: Property
+prop_handleGuessedGuessCorrect = monadicIO $ do
+    (p, c) <- pick genPuzzleAndCorrectChar
+    handledPuzzle <- run $ handleGuess p c
+    -- TODO this is actually just the same as in the code ... better test?
+    assert $ handledPuzzle == fillInCharacter p c True
+
+prop_handleGuessedGuessIncorrect :: Property
+prop_handleGuessedGuessIncorrect = monadicIO $ do
+    (p, c) <- pick genPuzzleAndIncorrectChar
+    handledPuzzle <- run $ handleGuess p c
+    -- asser that incorrect counter increased
+    assert $ (incorrect p) + 1 == incorrect handledPuzzle
+    where
+        incorrect (Puzzle _ _ _ i) = i
 
 main :: IO ()
 main = do
