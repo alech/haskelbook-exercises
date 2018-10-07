@@ -1,15 +1,14 @@
 module MaybeMonoid where
 
-import Data.Monoid
-
 data Optional a =
       Nada
     | Only a
     deriving (Eq, Show)
 
+fromOptional :: a -> Optional a -> a
+fromOptional a Nada     = a
+fromOptional _ (Only a) = a
+
 instance Monoid a => Monoid (Optional a) where
     mempty  = Only mempty
-    mappend Nada     (Only b) = Only $ mempty <> b
-    mappend (Only a) Nada     = Only $ a <> mempty
-    mappend (Only a) (Only b) = Only $ a <> b
-    mappend Nada Nada         = Only $ mempty
+    mappend a b = Only $ mappend (fromOptional mempty a) (fromOptional mempty b)
