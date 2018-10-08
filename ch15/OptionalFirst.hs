@@ -36,9 +36,10 @@ instance Monoid (First' a) where
 instance Arbitrary a => Arbitrary (Optional a) where
     arbitrary = frequency [
          (1, return Nada)
-       , (10, do
-                x <- arbitrary
-                return $ Only x)
+         -- arbitrary returns something of type Gen a, Only is
+         -- a function from a to Optional a, so
+         -- Only <$> arbitrary is of type Gen (Optional a)
+       , (10, Only <$> arbitrary)
         ]
 
 instance Arbitrary a => Arbitrary (First' a) where
