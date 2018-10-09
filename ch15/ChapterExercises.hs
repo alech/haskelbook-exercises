@@ -1,6 +1,6 @@
 module ChapterExercises where
 
-import Test.QuickCheck
+import Test.QuickCheck (Arbitrary(..), arbitrary, Gen(..), CoArbitrary(..), quickCheck, elements)
 
 data Trivial = Trivial deriving (Eq, Show)
 
@@ -136,8 +136,31 @@ newtype Comp a =
     Comp { unComp :: (a -> a) }
 
 instance Semigroup (Comp a) where
-    (Comp { unComp = f1 }) <>  (Comp { unComp = f2 }) =
+    (Comp { unComp = f1 }) <> (Comp { unComp = f2 }) =
         Comp $ f1 . f2
+
+data Validation a b =
+    Failure a | Success b
+    deriving (Eq, Show)
+
+instance Semigroup a =>
+    Semigroup (Validation a b) where
+    Success x <> _         = Success x
+    Failure _ <> Success y = Success y
+    Failure x <> Failure y = Failure $ x <> y
+
+instance (Arbitrary a, Arbitrary b) =>
+    Arbitrary (Validation a b) where
+    arbitrary = do
+        x <- arbitrary
+        y <- arbitrary
+        elements [Success x, Failure y]
+
+type ValidationAssoc =
+    Validation String Int ->
+    Validation String Int ->
+    Validation String Int ->
+    Bool
 
 main :: IO ()
 main = do
@@ -148,3 +171,4 @@ main = do
     quickCheck (semigroupAssoc :: FourAssoc)
     quickCheck (semigroupAssoc :: BoolConjAssoc)
     quickCheck (semigroupAssoc :: BoolDisjAssoc)
+    quickCheck (semigroupAssoc :: ValidationAssoc)
