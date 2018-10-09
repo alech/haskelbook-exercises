@@ -82,6 +82,63 @@ type FourAssoc =
     Four [Int] String Ordering [Bool] ->
     Bool
 
+newtype BoolConj = BoolConj Bool
+    deriving (Eq, Show)
+
+instance Semigroup BoolConj where
+    (BoolConj a) <> (BoolConj b) = BoolConj $ a && b
+
+instance Arbitrary BoolConj where
+    arbitrary = BoolConj <$> arbitrary
+
+type BoolConjAssoc = BoolConj -> BoolConj -> BoolConj -> Bool
+
+newtype BoolDisj = BoolDisj Bool
+    deriving (Eq, Show)
+
+instance Semigroup BoolDisj where
+    (BoolDisj a) <> (BoolDisj b) = BoolDisj $ a || b
+
+instance Arbitrary BoolDisj where
+    arbitrary = BoolDisj <$> arbitrary
+
+type BoolDisjAssoc = BoolDisj -> BoolDisj -> BoolDisj -> Bool
+
+data Or a b =
+      Fst a
+    | Snd b
+
+instance Semigroup (Or a b) where
+    (Fst _) <> b = b
+    a       <> _ = a
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Or a b) where
+    arbitrary = do
+        x <- arbitrary
+        y <- arbitrary
+        elements [Fst x, Snd y]
+
+newtype Combine a b =
+    Combine { unCombine :: (a -> b) }
+
+instance Semigroup b => Semigroup (Combine a b) where
+    (Combine { unCombine = f1 }) <> (Combine { unCombine = f2 }) =
+        Combine $ \x -> f1 x <> f2 x
+
+-- we cannot quickcheck anyways since we don't have an Eq and Show
+-- for combine ... so this is kinda useless. But oh well.
+instance (CoArbitrary a, Arbitrary b) => Arbitrary (Combine a b) where
+    arbitrary = do
+        f <- arbitrary
+        return $ Combine f
+
+newtype Comp a =
+    Comp { unComp :: (a -> a) }
+
+instance Semigroup (Comp a) where
+    (Comp { unComp = f1 }) <>  (Comp { unComp = f2 }) =
+        Comp $ f1 . f2
+
 main :: IO ()
 main = do
     quickCheck (semigroupAssoc :: TrivAssoc)
@@ -89,3 +146,5 @@ main = do
     quickCheck (semigroupAssoc :: TwoAssoc)
     quickCheck (semigroupAssoc :: ThreeAssoc)
     quickCheck (semigroupAssoc :: FourAssoc)
+    quickCheck (semigroupAssoc :: BoolConjAssoc)
+    quickCheck (semigroupAssoc :: BoolDisjAssoc)
