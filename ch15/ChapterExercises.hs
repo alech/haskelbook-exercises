@@ -162,13 +162,50 @@ type ValidationAssoc =
     Validation String Int ->
     Bool
 
+instance Monoid Trivial where
+    mempty = Trivial
+
+monoidLeftIdentity :: (Monoid m, Eq m) => m -> Bool
+monoidLeftIdentity a = (mempty <> a) == a
+
+monoidRightIdentity :: (Monoid m, Eq m) => m -> Bool
+monoidRightIdentity a = (a <> mempty) == a
+
+instance Monoid a => Monoid (Identity a) where
+    mempty = Identity mempty
+
+instance (Monoid a, Monoid b) => Monoid (Two a b) where
+    mempty = Two mempty mempty
+
+instance Monoid BoolConj where
+    mempty = BoolConj True
+
+instance Monoid BoolDisj where
+    mempty = BoolDisj False
+
+instance Monoid b => Monoid (Combine a b) where
+    mempty = Combine $ const mempty
+
+instance Monoid (Comp a) where
+    mempty = Comp id
+
 main :: IO ()
 main = do
     quickCheck (semigroupAssoc :: TrivAssoc)
+    quickCheck (monoidLeftIdentity :: Trivial -> Bool)
+    quickCheck (monoidRightIdentity :: Trivial -> Bool)
     quickCheck (semigroupAssoc :: IdentityAssoc)
+    quickCheck (monoidLeftIdentity :: Identity String -> Bool)
+    quickCheck (monoidRightIdentity :: Identity String -> Bool)
     quickCheck (semigroupAssoc :: TwoAssoc)
+    quickCheck (monoidLeftIdentity :: Two String [Int] -> Bool)
+    quickCheck (monoidRightIdentity :: Two String [Int] -> Bool)
     quickCheck (semigroupAssoc :: ThreeAssoc)
     quickCheck (semigroupAssoc :: FourAssoc)
     quickCheck (semigroupAssoc :: BoolConjAssoc)
+    quickCheck (monoidLeftIdentity :: BoolConj -> Bool)
+    quickCheck (monoidRightIdentity :: BoolConj -> Bool)
     quickCheck (semigroupAssoc :: BoolDisjAssoc)
+    quickCheck (monoidLeftIdentity :: BoolDisj -> Bool)
+    quickCheck (monoidRightIdentity :: BoolDisj -> Bool)
     quickCheck (semigroupAssoc :: ValidationAssoc)
