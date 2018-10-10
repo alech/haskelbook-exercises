@@ -189,6 +189,19 @@ instance Monoid b => Monoid (Combine a b) where
 instance Monoid (Comp a) where
     mempty = Comp id
 
+newtype Mem s a =
+    Mem {
+        runMem :: s -> (a, s)
+    }
+
+instance Semigroup a => Semigroup (Mem s a) where
+    m1@(Mem f1) <> m2@(Mem f2) =
+        Mem $ \s -> (fst (f1 s) <> fst (f2 s),
+                     snd (f2 $ snd (f1 s)))
+
+instance Monoid a => Monoid (Mem s a) where
+    mempty = Mem $ \x -> (mempty, x)
+
 main :: IO ()
 main = do
     quickCheck (semigroupAssoc :: TrivAssoc)
