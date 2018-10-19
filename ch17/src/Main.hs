@@ -4,6 +4,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Checkers
 import Test.QuickCheck.Classes
 import Debug.Trace
+import Control.Applicative (liftA2)
 
 data List a =
       Nil
@@ -75,12 +76,23 @@ zlAppend :: ZipList' a -> ZipList' a -> ZipList' a
 zlAppend (ZipList' a) (ZipList' b) = ZipList' $ a `appendLists` b
 
 instance Applicative ZipList' where
-    pure x  = ZipList' (Cons x Nil)
+    -- this is needed so identity works, we need as many
+    -- identity functions as values
+    pure x  = ZipList' $ repeat' x
     ZipList' Nil         <*> _                    = ZipList' Nil
     _                    <*> ZipList' Nil         = ZipList' Nil
     ZipList' (Cons f fs) <*> ZipList' (Cons x xs) = ZipList' (Cons (f x) Nil) `zlAppend` ((ZipList' fs) <*> (ZipList' xs))
 
+instance Arbitrary a => Arbitrary (ZipList' a) where
+    arbitrary = ZipList' <$> arbitrary
+
+instance Semigroup a => Semigroup (ZipList' a) where
+    (<>) = liftA2 (<>)
+
+instance Monoid a => Monoid (ZipList' a) where
+    mempty = pure mempty
+
 main :: IO ()
 main = do
     quickBatch (applicative (Cons ("b", "w", 1 :: Integer) Nil))
-    --quickBatch (applicative (ZipList' $ Cons ("b", "w", 1 :: Integer) Nil))
+    quickBatch (applicative (ZipList' $ Cons ("b", "w", 1 :: Integer) Nil))
