@@ -1,10 +1,11 @@
 module Main where
 
-import Test.QuickCheck
+import Test.QuickCheck (Arbitrary, arbitrary, elements, Gen, (.&&.))
 import Test.QuickCheck.Checkers
 import Test.QuickCheck.Classes
 import Debug.Trace
 import Control.Applicative (liftA2)
+import Data.Monoid (Sum)
 
 data List a =
       Nil
@@ -92,7 +93,36 @@ instance Semigroup a => Semigroup (ZipList' a) where
 instance Monoid a => Monoid (ZipList' a) where
     mempty = pure mempty
 
+data Validation e a =
+      Failure e
+    | Success a
+    deriving (Eq, Show)
+
+instance Functor (Validation e) where
+    fmap _ (Failure e) = Failure e
+    fmap f (Success a) = Success $ f a
+
+instance Monoid e => Applicative (Validation e) where
+    pure = Success
+    (Failure e1) <*> (Failure e2) = Failure $ e1 <> e2
+    (Failure e)  <*> (Success _)  = Failure e
+    (Success _)  <*> (Failure e)  = Failure e
+    (Success f)  <*> (Success x)  = Success $ f x
+
+instance (Arbitrary a, Arbitrary e) => Arbitrary (Validation e a) where
+    arbitrary = do
+        x <- arbitrary
+        y <- arbitrary
+        elements [Failure x, Success y]
+
+instance (Eq a, Eq e) => EqProp (Validation e a) where
+    -- is there a better way to write this than eq True False???
+    Failure e1  =-= Failure e2  = eq e1 e2
+    Success a1  =-= Success a2  = eq a1 a2
+    _           =-= _           = eq True False
+
 main :: IO ()
 main = do
     quickBatch (applicative (Cons ("b", "w", 1 :: Integer) Nil))
     quickBatch (applicative (ZipList' $ Cons ("b", "w", 1 :: Integer) Nil))
+    quickBatch (applicative (Success ("b", "w", 1) :: Validation String (String, String, Sum Integer)))
