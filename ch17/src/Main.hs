@@ -121,8 +121,42 @@ instance (Eq a, Eq e) => EqProp (Validation e a) where
     Success a1  =-= Success a2  = eq a1 a2
     _           =-= _           = eq True False
 
+data Pair a = Pair a a
+    deriving (Show, Eq)
+
+instance Functor Pair where
+    fmap f (Pair x1 x2) = Pair (f x1) (f x2)
+
+instance Applicative Pair where
+    pure x = Pair x x
+    Pair f1 f2 <*> Pair x1 x2 = Pair (f1 x1) (f2 x2)
+
+instance (Arbitrary a) => Arbitrary (Pair a) where
+    arbitrary = Pair <$> arbitrary <*> arbitrary
+
+instance (Eq a) => EqProp (Pair a) where
+    Pair a1 a2 =-= Pair b1 b2 = eq a1 b1 .&. eq a2 b2
+
+data Two a b = Two a b
+    deriving (Eq, Show)
+
+instance Functor (Two a) where
+    fmap f (Two a b) = Two a (f b)
+
+instance Monoid a => Applicative (Two a) where
+    pure = Two mempty
+    (Two a1 f) <*> (Two a2 x) = Two (a1 <> a2) (f x)
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
+    arbitrary = Two <$> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b) => EqProp (Two a b) where
+    Two a1 b1 =-= Two a2 b2 = eq a1 a2 .&. eq b1 b2
+
 main :: IO ()
 main = do
     quickBatch (applicative (Cons ("b", "w", 1 :: Integer) Nil))
     quickBatch (applicative (ZipList' $ Cons ("b", "w", 1 :: Integer) Nil))
     quickBatch (applicative (Success ("b", "w", 1) :: Validation String (String, String, Sum Integer)))
+    quickBatch (applicative (Pair ("b", "w", 1 :: Integer) ("b", "w", 1 :: Integer)))
+    quickBatch (applicative (Two "foo" ("b", "w", 1 :: Integer)))
