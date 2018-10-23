@@ -4,7 +4,7 @@ import Test.QuickCheck (Arbitrary, arbitrary, elements, Gen, (.&&.))
 import Test.QuickCheck.Checkers
 import Test.QuickCheck.Classes
 import Debug.Trace
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2, liftA3)
 import Data.Monoid (Sum)
 
 data List a =
@@ -204,7 +204,35 @@ instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d)
 
 instance (Eq a, Eq b, Eq c, Eq d) => EqProp (Four a b c d) where
     Four a1 b1 c1 d1 =-= Four a2 b2 c2 d2 =
-        eq a1 a2 .&. eq b1 b2 .&. eq c1 c2  .&. eq d1 d2
+        eq a1 a2 .&. eq b1 b2 .&. eq c1 c2 .&. eq d1 d2
+
+data Four' a b = Four' a a a b
+    deriving (Eq, Show)
+
+instance Functor (Four' a) where
+    fmap f (Four' a1 a2 a3 b) = Four' a1 a2 a3 (f b)
+
+instance (Monoid a) => Applicative (Four' a) where
+    pure = Four' mempty mempty mempty
+    (Four' a1 a2 a3 f) <*> (Four' a1' a2' a3' x) =
+        Four' (a1 <> a1') (a2 <> a2') (a3 <> a3') (f x)
+
+instance (Arbitrary a, Arbitrary b)
+    => Arbitrary (Four' a b) where
+    arbitrary = Four' <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b) => EqProp (Four' a b) where
+    Four' a1 b1 c1 d1 =-= Four' a2 b2 c2 d2 =
+        eq a1 a2 .&. eq b1 b2 .&. eq c1 c2 .&. eq d1 d2
+
+stops :: String
+stops = "pbtdkg"
+
+vowels :: String
+vowels = "aeiop"
+
+combos :: [a] -> [b] -> [c] -> [(a, b, c)]
+combos = liftA3 (,,)
 
 main :: IO ()
 main = do
@@ -216,3 +244,4 @@ main = do
     quickBatch (applicative (Three "foo" [True] ("b", "w", 1 :: Integer)))
     quickBatch (applicative (Three' "foo" ("a", "", 1 :: Integer) ("b", "w", 1 :: Integer)))
     quickBatch (applicative (Four "foo" [True] [2 :: Int] ("b", "w", 1 :: Integer)))
+    quickBatch (applicative (Four' "foo" "bar" "baz" ("b", "w", 1 :: Integer)))
