@@ -153,6 +153,59 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
 instance (Eq a, Eq b) => EqProp (Two a b) where
     Two a1 b1 =-= Two a2 b2 = eq a1 a2 .&. eq b1 b2
 
+data Three a b c = Three a b c
+    deriving (Eq, Show)
+
+instance Functor (Three a b) where
+    fmap f (Three a b c) = Three a b (f c)
+
+instance (Monoid a, Monoid b) => Applicative (Three a b) where
+    pure = Three mempty mempty
+    (Three a1 b1 f) <*> (Three a2 b2 x) = Three (a1 <> a2) (b1 <> b2) (f x)
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c) => Arbitrary (Three a b c) where
+    arbitrary = Three <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b, Eq c) => EqProp (Three a b c) where
+    Three a1 b1 c1 =-= Three a2 b2 c2 =
+        eq a1 a2 .&. eq b1 b2 .&. eq c1 c2 
+
+data Three' a b = Three' a b b
+    deriving (Eq, Show)
+
+instance Functor (Three' a) where
+    fmap f (Three' a b1 b2) = Three' a (f b1) (f b2)
+
+instance (Monoid a) => Applicative (Three' a) where
+    pure x = Three' mempty x x
+    (Three' a1 f1 f2) <*> (Three' a2 x1 x2) = Three' (a1 <> a2) (f1 x1) (f2 x2)
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Three' a b) where
+    arbitrary = Three' <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b) => EqProp (Three' a b) where
+    Three' a1 b1 c1 =-= Three' a2 b2 c2 =
+        eq a1 a2 .&. eq b1 b2 .&. eq c1 c2 
+
+data Four a b c d = Four a b c d
+    deriving (Eq, Show)
+
+instance Functor (Four a b c) where
+    fmap f (Four a b c d) = Four a b c (f d)
+
+instance (Monoid a, Monoid b, Monoid c) => Applicative (Four a b c) where
+    pure = Four mempty mempty mempty
+    (Four a1 b1 c1 f) <*> (Four a2 b2 c2 x) =
+        Four (a1 <> a2) (b1 <> b2) (c1 <> c2) (f x)
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d)
+    => Arbitrary (Four a b c d) where
+    arbitrary = Four <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b, Eq c, Eq d) => EqProp (Four a b c d) where
+    Four a1 b1 c1 d1 =-= Four a2 b2 c2 d2 =
+        eq a1 a2 .&. eq b1 b2 .&. eq c1 c2  .&. eq d1 d2
+
 main :: IO ()
 main = do
     quickBatch (applicative (Cons ("b", "w", 1 :: Integer) Nil))
@@ -160,3 +213,6 @@ main = do
     quickBatch (applicative (Success ("b", "w", 1) :: Validation String (String, String, Sum Integer)))
     quickBatch (applicative (Pair ("b", "w", 1 :: Integer) ("b", "w", 1 :: Integer)))
     quickBatch (applicative (Two "foo" ("b", "w", 1 :: Integer)))
+    quickBatch (applicative (Three "foo" [True] ("b", "w", 1 :: Integer)))
+    quickBatch (applicative (Three' "foo" ("a", "", 1 :: Integer) ("b", "w", 1 :: Integer)))
+    quickBatch (applicative (Four "foo" [True] [2 :: Int] ("b", "w", 1 :: Integer)))
