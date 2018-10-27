@@ -39,6 +39,27 @@ instance (Eq a, Eq b) => EqProp (Sum a b) where
     Second x =-= Second y = eq x y
     _        =-= _        = eq True False
 
+data Nope a = NopeDotJpg
+    deriving (Eq, Show)
+
+instance Functor Nope where
+    fmap _ _ = NopeDotJpg
+
+instance Applicative Nope where
+    pure _  = NopeDotJpg
+    _ <*> _ = NopeDotJpg
+
+instance Monad Nope where
+    return _ = NopeDotJpg
+    _ >>= _  = NopeDotJpg
+
+instance Arbitrary (Nope a) where
+    arbitrary = return NopeDotJpg
+
+instance EqProp (Nope a) where
+    _ =-= _ = eq True True
+
 main :: IO ()
 main = do
     quickBatch $ monad (Second ((), "bar", "baz") :: Sum String ((), String, String))
+    quickBatch $ monad (NopeDotJpg :: Nope ((), String, String))
