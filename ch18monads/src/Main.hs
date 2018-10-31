@@ -59,7 +59,39 @@ instance Arbitrary (Nope a) where
 instance EqProp (Nope a) where
     _ =-= _ = eq True True
 
+data PhhhbbtttEither b a =
+      LeftP a
+    | RightP b
+    deriving (Show, Eq)
+
+instance Functor (PhhhbbtttEither b) where
+    fmap f (LeftP a)  = LeftP $ f a
+    fmap _ (RightP b) = RightP b
+
+instance Applicative (PhhhbbtttEither b) where
+    pure    = LeftP
+    (LeftP f) <*> (LeftP x) = LeftP $ f x
+    (LeftP _) <*> RightP x  = RightP x
+    (RightP x) <*> _        = RightP x
+
+instance Monad (PhhhbbtttEither b) where
+    return = pure
+    (LeftP a)  >>= f = f a
+    (RightP b) >>= _ = RightP b
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (PhhhbbtttEither b a) where
+    arbitrary = do
+        x <- arbitrary
+        y <- arbitrary
+        elements [LeftP x, RightP y]
+
+instance (Eq a, Eq b) => EqProp (PhhhbbtttEither b a) where
+    LeftP x  =-= LeftP y  = eq x y
+    RightP x =-= RightP y = eq x y
+    _        =-= _        = eq True False
+
 main :: IO ()
 main = do
     quickBatch $ monad (Second ((), "bar", "baz") :: Sum String ((), String, String))
     quickBatch $ monad (NopeDotJpg :: Nope ((), String, String))
+    quickBatch $ monad (RightP ("abc", "foo", "bar") :: PhhhbbtttEither (String, String, String) (String, String, String))
