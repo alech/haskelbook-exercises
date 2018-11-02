@@ -110,9 +110,45 @@ instance Arbitrary a => Arbitrary (Identity a) where
 instance (Eq a) => EqProp (Identity a) where
     x =-= y = eq x y
 
+data List a =
+      Nil
+    | Cons a (List a)
+    deriving (Show, Eq)
+
+instance Functor List where
+    fmap _ Nil         = Nil
+    fmap f (Cons x xs) = Cons (f x) (fmap f xs)
+
+instance Applicative List where
+    pure x = Cons x Nil
+    Nil         <*> _           = Nil
+    (Cons f fs) <*> xs = appendLists (fmap f xs) (fs <*> xs)
+
+appendLists :: List a -> List a -> List a
+appendLists Nil ys         = ys
+appendLists (Cons x xs) ys = Cons x (appendLists xs ys)
+
+-- we are lazy for now and just do up to two-element lists
+instance Arbitrary a => Arbitrary (List a) where
+    arbitrary = do
+        x <- arbitrary
+        y <- arbitrary
+        elements [Nil, Cons x Nil, Cons x (Cons y Nil)]
+    
+instance Eq a => EqProp (List a) where
+    -- is there a better way to write this than eq True True???
+    Nil         =-= Nil         = eq True True
+    (Cons x xs) =-= (Cons y ys) = eq x y .&&. (xs =-= ys)
+
+instance Monad List where
+    return = pure
+    Nil         >>= _ = Nil
+    (Cons x xs) >>= f = appendLists (f x) (xs >>= f)
+
 main :: IO ()
 main = do
     quickBatch $ monad (Second ((), "bar", "baz") :: Sum String ((), String, String))
     quickBatch $ monad (NopeDotJpg :: Nope ((), String, String))
     quickBatch $ monad (RightP ("abc", "foo", "bar") :: PhhhbbtttEither (String, String, String) (String, String, String))
     quickBatch $ monad (Identity ("abc", "foo", "bar") :: Identity (String, String, String))
+    quickBatch $ monad (Cons ("abc", "foo", "bar") Nil :: List (String, String, String))
