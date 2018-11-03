@@ -145,6 +145,27 @@ instance Monad List where
     Nil         >>= _ = Nil
     (Cons x xs) >>= f = appendLists (f x) (xs >>= f)
 
+j :: Monad m => m (m a) -> m a
+j mma = mma >>= id -- or "join"
+
+l1 :: Monad m => (a -> b) -> m a -> m b
+l1 = fmap
+
+l2 :: Monad m => (a -> b -> c) -> m a -> m b -> m c
+l2 f ma mb = fmap f ma <*> mb
+
+-- ap
+a :: Monad m => m a -> m (a -> b) -> m b
+a ma mf = mf <*> ma
+
+meh :: Monad m
+    => [a] -> (a -> m b) -> m [b]
+meh [] _     = return []
+meh (x:xs) f = (:) <$> f x <*> meh xs f
+
+flipType :: Monad m => [m a] -> m [a]
+flipType = flip meh id
+
 main :: IO ()
 main = do
     quickBatch $ monad (Second ((), "bar", "baz") :: Sum String ((), String, String))
