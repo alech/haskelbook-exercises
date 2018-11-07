@@ -1,0 +1,84 @@
+diff --git a/app/Main.hs b/app/Main.hs
+index 3c7d040..7e61aa1 100644
+--- a/app/Main.hs
++++ b/app/Main.hs
+@@ -10,6 +10,7 @@ import qualified Data.Text.Lazy as TL
+ import qualified Database.Redis as R
+ import Network.URI (URI, parseURI)
+ import qualified System.Random as SR
++import Data.Either (isRight)
+ import Web.Scotty
+ 
+ alphaNum :: String
+@@ -25,7 +26,8 @@ randomElement xs = do
+ 
+ shortyGen :: IO String
+ shortyGen =
+-  replicateM 7 (randomElement alphaNum)
++  --  return "a"
++  replicateM 1 (randomElement alphaNum)
+ 
+ saveURI :: R.Connection
+         -> BC.ByteString
+@@ -34,6 +36,15 @@ saveURI :: R.Connection
+ saveURI conn shortURI uri =
+   R.runRedis conn $ R.set shortURI uri
+ 
++checkExistence :: R.Connection
++               -> BC.ByteString
++               -> IO Bool
++checkExistence conn shortURI = do
++    res <- getURI conn shortURI
++    return $ case res of
++        Right (Just _) -> True
++        _              -> False
++
+ getURI  :: R.Connection
+         -> BC.ByteString
+         -> IO (Either R.Reply (Maybe BC.ByteString))
+@@ -62,6 +73,10 @@ shortyFound :: TL.Text -> TL.Text
+ shortyFound tbs =
+   TL.concat ["<a href=\"", tbs, "\">", tbs, "</a>"]
+ 
++shortyCollision :: String -> TL.Text
++shortyCollision shawty =
++    TL.concat ["Sorry, shorty ", TL.pack shawty, " is already in use, try again!"]
++
+ app :: R.Connection
+     -> ScottyM ()
+ app rConn = do
+@@ -74,8 +89,12 @@ app rConn = do
+         shawty <- liftIO shortyGen
+         let shorty = BC.pack shawty
+             uri' = encodeUtf8 (TL.toStrict uri)
+-        resp <- liftIO (saveURI rConn shorty uri')
+-        html (shortyCreated resp shawty)
++        exists <- liftIO (checkExistence rConn shorty)
++        if not exists then do
++            resp <- liftIO (saveURI rConn shorty uri')
++            html (shortyCreated resp shawty)
++        else
++            html (shortyCollision shawty)
+       Nothing -> text (shortyAintUri uri)
+   get "/:short" $ do
+     short <- param "short"
+diff --git a/stack.yaml b/stack.yaml
+index 2e43058..1c6bfea 100644
+--- a/stack.yaml
++++ b/stack.yaml
+@@ -1,7 +1,7 @@
+ # For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
+ 
+ # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
+-resolver: lts-3.7
++resolver: lts-12.10
+ 
+ # Local packages, usually specified by relative directory name
+ packages:
+@@ -30,3 +30,6 @@ extra-package-dbs: []
+ # Extra directories used by stack for building
+ # extra-include-dirs: [/path/to/dir]
+ # extra-lib-dirs: [/path/to/dir]
++nix:
++    enable: true
++    packages: [zlib]
