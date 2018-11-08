@@ -35,6 +35,31 @@ fold' = foldMap id
 
 foldMap' :: (Foldable t, Monoid m) => (a -> m) -> t a -> m
 foldMap' f = foldr (\a b -> b <> f a) mempty
+
+data Constant a b = Constant b
+instance Foldable (Constant a) where
+    foldr f b1 (Constant b2) = f b2 b1
+
+data Two a b = Two a b
+instance Foldable (Two a) where
+    foldr f b1 (Two _ b2) = f b2 b1
+
+data Three a b c = Three a b c
+instance Foldable (Three a b) where
+    foldr f b1 (Three _ _ b2) = f b2 b1
+
+data Three' a b = Three' a b b
+instance Foldable (Three' a) where
+    foldr f b1 (Three' _ b2 b3) = f b3 (f b2 b1)
+
+data Four' a b = Four' a b b b
+instance Foldable (Four' a) where
+    foldr f b1 (Four' _ b2 b3 b4) = f b4 (f b3 (f b2 b1))
+
+filterF :: (Applicative f, Foldable t, Monoid (f a))
+           => (a -> Bool) -> t a -> f a
+filterF f = foldMap (\a -> if f a then pure a else mempty)
+
 main :: IO ()
 main = do
   putStrLn "hello world"
